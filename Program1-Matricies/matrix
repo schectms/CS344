@@ -1,0 +1,313 @@
+#!/bin/bash
+
+#===i============================================================
+#          Shifra Schectman
+#          CS344-Program 1 
+#          April 25, 2019
+#=================================================================
+
+
+
+#===   FUNCTION==================================================
+#          NAME:   dims
+#   DESCRIPTION:function that checks the dimensions of the matrix
+#=================================================================
+dims()
+{
+
+   #check is file is readable and num of args
+   if test -r $1 && test -z $2
+   then 
+    	    rowCount=0
+            colCount=0
+	    #loop through file to count cols
+            read -r entireline < "$1"
+        	    for i in $entireline
+       		    do
+		    	 colCount=$((colCount+1))
+	    done 
+	
+   	    #counts number of lines in file 
+   	    rowCount=$(wc -l < "$1")
+	    #output to file
+	    echo -n "$rowCount"
+	    echo -n " "
+   	    echo $colCount
+    #otherwise, display error message
+    else
+    echo "invalid" >&2
+    exit 1
+    fi
+
+}
+
+#===   FUNCTION==================================================
+#          NAME:   transpose
+#   DESCRIPTION:function that flips the matrix
+#=================================================================
+transpose()
+{
+
+    #check if file is readable and num of args
+    if test -r $1 && test -z $2
+    then 
+	    #calculate number of colums
+	    colCount=0
+            read -r entireline < "$1"
+            	    for i in $entireline
+        	    do
+		 	    colCount=$((colCount+1))
+        	    done
+
+	    #loop through and cut by tab , and send to temp file
+	    for((i=1;i<=colCount;i++))
+		    do 
+		  	     cut -d 	'	' -f $i "$1" |
+			     paste -s -d '	' >> "tempfile$$"
+	   	    done 
+ 	    #display and remove temp file
+	    cat "tempfile$$"
+	    rm -rf "tempfile$$"
+    #otherwise, display error message
+    else
+    echo "invalid" >&2
+    exit 1
+    fi
+
+} 
+
+#===   FUNCTION==================================================
+#          NAME:   mean
+#   DESCRIPTION:function calculates the avg of cols in matrix
+#=================================================================
+mean()
+{
+    #check if file is readable and num of args
+    if test -r $1 && test -z $2
+    then 
+		count=0
+		sum=0
+		#calculate dims of file
+        	rowCount=$(wc -l < "$1")
+		colCount=0
+        	read entireline < $1
+ 		           for i in $entireline
+     			   do
+				     colCount=$((colCount+1))
+        		   done
+
+		#transpose file
+    	        for((i=1;i<=colCount;i++))
+                do
+            	        cut -d "	" -f $i $1 |
+		    	paste -s -d "	" >> "tempfile$$"
+        	done
+	
+		#loop through file to calculate sum of row
+		while read -r  line 
+		do 
+			for j in $line
+			do
+				sum=$((sum+j))
+			done
+			#calculate avg
+			avg=$(((sum+(rowCount/2)*((sum>0)*2-1))/rowCount)) 
+			#keeps track of where to put new line
+			count=$((count+1))
+	
+			#print avgs
+			if ((count < colCount))
+			then 
+				printf -- "$avg\t"
+				sum=0
+			else
+				printf -- "$avg\n" 
+			fi
+		done < "tempfile$$"
+
+		rm -rf "tempfile$$"
+    #otherwise, print error mssg
+    else
+    echo "invalid" >&2
+    exit 1
+    fi
+ 
+}		
+
+#===   FUNCTION==================================================
+#          NAME:   add
+#   DESCRIPTION:function calculates the sum of cols in matrix
+#=================================================================
+
+add()
+{
+
+   #run dims to check if files can be added
+   dimsm1=$( dims $1)
+   dimsm2=$( dims $2)
+   #if they cannot, print error
+   if [[ $# -eq 0  || ($dimsm1 != $dimsm2)]]
+   then
+	    echo "invalid">&2
+   exit 1
+   else
+
+   #calculate col count 
+   colCount=0
+   read entireline < $1
+   	for i in $entireline
+	do
+		   colCount=$((colCount+1))
+        done
+
+   #read file 1 into array
+   declare -a sumfile
+   while read line 
+   	   do
+	    	for j in $line
+		do
+			sumfile+=("$j")
+		done
+    done < $1
+
+   #read file 2 into array
+    declare -a sumfile2
+    while read line
+    do
+  	   for j in $line
+	   do 
+	   	    sumfile2+=("$j")
+	   done
+   done < $2
+
+    #keeps track of where new line should be printed
+    count=${#sumfile[@]}
+    count=$((count-1))
+
+    sum=0
+    index=0
+    i=1
+
+    #loop through arrays to sum
+    while(($index <= $count))
+    do
+		   num1=${sumfile[$index]}
+		   num2=${sumfile2[$index]}
+		   sum=$((num1+num2))
+		   index=$((index+1))
+		   i=$((i+1))
+		   #print sums
+		   if ((i <= colCount))
+		   then
+		  	   printf -- "$sum\t"
+		   else
+			   printf -- "$sum\n"
+			   i=1
+		   fi
+
+    done
+    fi
+
+}
+
+#===   FUNCTION==================================================
+#          NAME:   multiply
+#   DESCRIPTION:imultiplies 2  matricies
+#=================================================================
+multiply()
+{
+   #calculate num of cols from file 1 	
+   colCount1=0
+   read -r entireline < "$1"
+   	for i in $entireline
+   	do
+	   	colCount1=$((colCount1+1))
+   	done
+   #calculate num of rows file 2
+   rowCount2=$(wc -l < "$2")
+
+   #check dims are ok for multiplication
+   if [[ $colCount1 == "$rowCount2" ]]
+   then
+	    #calculate num of cols for file 2	
+   	    colCount2=0
+	    read -r entireline < "$2"
+		   for i in $entireline
+		   do
+			    colCount2=$((colCount2+1))
+	    done
+    	    #transpose file 2
+	    for((i=1;i<=colCount2;i++))
+	    do
+		    cut -d "	" -f $i $2 |
+                    paste -s -d "	" >> "tempfile$$"
+
+	    done
+	    #calculate num of rows in file 1
+	    rowCount1=$(wc -l < "$1")
+
+	    count=0
+	    declare -a a
+	    declare -a b
+            #loop through file 1 to read elements
+	    while read -r row
+  	    do 
+	    	   a=($row)
+		   #loop through file 2 to read elements
+ 	    	   while read -r col
+	    	   do 
+		   	   sum=0
+		    	   b=($col)
+			   #keep track of elements being read for new lines
+			   count=$((count+1))
+
+			   #loop through individual elements			
+			    	   for((i=0;i<${#b[@]};i++))
+		    	   do 
+			   	sum=$((sum+a[i]*b[i]))  
+			    	#count=$((count+1))
+		   	   done
+		  #print numbers
+	    	  if(( count < colCount2 ))
+	    	  then 
+	    			printf -- "$sum\t"
+		  else
+				printf -- "$sum"
+		  	        count=0
+	    	 fi
+   	 done < "tempfile$$"
+	 printf "\n"
+    	 done < "$1"
+	 rm -rf "tempfile$$"
+    #otherwise, print error
+    else
+   	  echo "invalid">&2
+     	  exit 1
+    fi
+
+}
+
+   #if dims and checks num of args 
+   if [[ "$1" == "dims" && $# < 2 ]]
+
+   then 
+	   #allows piping into dims
+	   datafilepath="datafile$$"
+	   if [ "$#" = "1" ]
+	   then 
+	   	   cat > "$datafilepath"
+		   dims "$datafilepath"
+		   rm -rf "$datafilepath"
+	   elif [ "$#" = "2" ]
+	   then 
+		   #otherwise, run as regular
+	  	   datafilepath=$1
+		   $1 "${@:2}"
+	   fi
+
+   else
+
+   #calls all other functions
+   $1 "${@:2}"
+
+   fi
